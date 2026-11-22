@@ -1,0 +1,43 @@
+Sources/ContentView.swift
+  s_d8fc9f63bfd7de::t_3fd83e2dbdc62b 12046,12053-12058,15769-15902
+Sources/Workspace+ProgramStatus.swift
+  s_d8fc9f63bfd7de::t_3fd83e2dbdc62b 1,12,20-22,34,101-106,122-125,139,320-391
+Sources/Workspace+TitleOwnership.swift
+  s_d8fc9f63bfd7de::t_3fd83e2dbdc62b 179-182
+Sources/Workspace+PanelLifecycle.swift
+  s_d8fc9f63bfd7de::t_3fd83e2dbdc62b 201-203,353-355,362
+cmuxTests/TerminalTabIconRegressionTests.swift
+  s_d8fc9f63bfd7de::t_3fd83e2dbdc62b 12-14,27-31,44-63,97-99,128-131,155
+Sources/Workspace.swift
+  s_d8fc9f63bfd7de::t_3fd83e2dbdc62b 3291,6423,6987
+Sources/WorkspaceSidebarAgentRuntimeObservationModel.swift
+  s_d8fc9f63bfd7de::t_3fd83e2dbdc62b 80-83
+Resources/Localizable.xcstrings
+  s_d8fc9f63bfd7de::t_3fd83e2dbdc62b 646921-646934
+Packages/macOS/CmuxSettingsUI/Sources/CmuxSettingsUI/Scene/SettingsWindowScene+Sections.swift
+  s_d8fc9f63bfd7de::t_3fd83e2dbdc62b 22,26-35
+Packages/macOS/CmuxSettingsUI/Tests/CmuxSettingsUITests/SettingsTaxonomyTests.swift
+  s_d8fc9f63bfd7de::t_3fd83e2dbdc62b 18
+Packages/macOS/CmuxSettingsUI/Sources/CmuxSettingsUI/Navigation/SettingsTaxonomy.swift
+  s_d8fc9f63bfd7de::t_3fd83e2dbdc62b 76
+Packages/macOS/CmuxSettingsUI/Sources/CmuxSettingsUI/Sections/ThemesSection.swift
+  s_d8fc9f63bfd7de::t_3fd83e2dbdc62b 62-64,66,68
+Packages/macOS/CmuxSettingsUI/Sources/CmuxSettingsUI/Scene/SettingsSectionMountModel.swift
+  s_d8fc9f63bfd7de::t_3fd83e2dbdc62b 49
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.8",
+  "base_commit_sha": "1c65ed289e9949aa04183abeb8cafb595bb0d55f",
+  "prompts": {},
+  "sessions": {
+    "s_d8fc9f63bfd7de": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1fdf4-153f-7600-9e2b-e1bac4b1a7f6",
+        "model": "gpt-6.2-sol"
+      },
+      "human_author": "unknown"
+    }
+  }
+}
