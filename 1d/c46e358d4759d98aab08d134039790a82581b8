@@ -1,0 +1,19 @@
+.gitmodules
+  s_d8fc9f63bfd7de::t_6e05148d361276 10
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.8",
+  "base_commit_sha": "1dc46e358d4759d98aab08d134039790a82581b8",
+  "prompts": {},
+  "sessions": {
+    "s_d8fc9f63bfd7de": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1fdf4-153f-7600-9e2b-e1bac4b1a7f6",
+        "model": "gpt-6.2-sol"
+      },
+      "human_author": "unknown"
+    }
+  }
+}
