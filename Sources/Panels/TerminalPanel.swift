@@ -136,7 +136,7 @@ final class TerminalPanel: Panel, ObservableObject {
     }
 
     var displayIcon: String? {
-        "terminal.fill"
+        nil
     }
 
 

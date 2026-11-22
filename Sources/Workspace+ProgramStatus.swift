@@ -8,6 +8,7 @@ extension Workspace {
     /// Applies one OSC 7501 report and publishes the resulting safe snapshot.
     func applyProgramStatus(_ report: ProgramStatusReport, panelId: UUID) {
         guard panels[panelId] != nil else { return }
+        if report.event == .promptStart { clearTerminalTabProgramIcon(forPanelId: panelId) }
         // Every shell prompt emits a prompt-start event; panes that never
         // reported program status have nothing to drop. A clear has nothing to remove either.
         if report.event == .promptStart || report.state == .clear,
@@ -15,6 +16,9 @@ extension Workspace {
         let previousStore = programStatusStoresByPanelId[panelId] ?? ProgramStatusRecordStore()
         let updatedStore = updateProgramStatusStore(panelId: panelId) { $0.apply(report) }
         guard let store = updatedStore else { return }
+        if report.event == .report && report.state != .clear {
+            updateTerminalTabProgramIcon(forPanelId: panelId, store: store)
+        }
         scheduleAgentTurnSettlement(panelId: panelId, previous: previousStore, current: store)
         CmuxEventBus.shared.publishProgramStatusChanged(
             workspaceId: id,
@@ -26,6 +30,7 @@ extension Workspace {
 
     /// Removes working and blocked records after prompt-idle or child exit.
     func dropTransientProgramStatus(panelId: UUID) {
+        clearTerminalTabProgramIcon(forPanelId: panelId)
         let previousStore = programStatusStoresByPanelId[panelId] ?? ProgramStatusRecordStore()
         let updatedStore = updateProgramStatusStore(panelId: panelId, createIfMissing: false) { $0.dropTransient() }
         guard let store = updatedStore else { return }
@@ -92,6 +97,9 @@ extension Workspace {
             .keys
             .sorted { $0.uuidString < $1.uuidString }
         programStatusStoresByPanelId.removeAll()
+        for panelId in Array(terminalTabProgramIconAssetsByPanelId.keys) {
+            clearTerminalTabProgramIcon(forPanelId: panelId)
+        }
         programStatusUrgencyByPanelId.removeAll()
         for panelId in clearedPanelIds {
             CmuxEventBus.shared.publishProgramStatusChanged(
@@ -107,6 +115,7 @@ extension Workspace {
     /// records under this workspace, so a non-empty store publishes `removed`.
     func clearProgramStatusPanel(panelId: UUID) {
         let removedStore = programStatusStoresByPanelId.removeValue(forKey: panelId)
+        clearTerminalTabProgramIcon(forPanelId: panelId)
         programStatusUrgencyByPanelId.removeValue(forKey: panelId)
         removePanelStatusEntry(key: Self.programStatusKey, panelId: panelId)
         refreshProgramStatusWorkspaceEntry()

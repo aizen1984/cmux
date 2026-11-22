@@ -1,4 +1,5 @@
 import Bonsplit
+import CmuxSidebar
 import Foundation
 import Testing
 
@@ -13,6 +14,56 @@ import Testing
 // that a mark never comes from anything but a running agent.
 @Suite(.serialized)
 struct TerminalTabIconRegressionTests {
+    @MainActor
+    @Test func newPlainTerminalTabHasNoIcon() throws {
+        let workspace = Workspace()
+        let panel = try #require(workspace.focusedTerminalPanel)
+        let tabId = try #require(workspace.surfaceIdFromPanelId(panel.id))
+
+        try expectNoTabIcon(workspace: workspace, tabId: tabId)
+    }
+
+    @MainActor
+    @Test(arguments: [
+        ("claude_code", "AgentIcons/Claude"),
+        ("codex", "AgentIcons/Codex"),
+    ])
+    func runningAgentSetsItsTabIcon(statusKey: String, assetName: String) throws {
+        let workspace = Workspace()
+        let panel = try #require(workspace.focusedTerminalPanel)
+        let tabId = try #require(workspace.surfaceIdFromPanelId(panel.id))
+
+        workspace.updatePanelShellActivityState(panelId: panel.id, state: .commandRunning)
+        workspace.recordAgentPID(
+            key: "\(statusKey).terminal-icon-regression",
+            pid: pid_t(ProcessInfo.processInfo.processIdentifier),
+            panelId: panel.id,
+            refreshPorts: false
+        )
+
+        let tab = try #require(workspace.bonsplitController.tab(tabId))
+        #expect(tab.iconAsset == assetName)
+        #expect(tab.icon == nil)
+    }
+
+    @MainActor
+    @Test func codexProgramStatusSetsIconUntilShellPromptReturns() throws {
+        let workspace = Workspace()
+        let panel = try #require(workspace.focusedTerminalPanel)
+        let tabId = try #require(workspace.surfaceIdFromPanelId(panel.id))
+
+        workspace.updatePanelShellActivityState(panelId: panel.id, state: .commandRunning)
+        workspace.applyProgramStatus(.init(state: .working, app: "codex"), panelId: panel.id)
+        workspace.applyProgramStatus(.init(state: .blocked, id: "other", app: "other"), panelId: panel.id)
+        let tab = try #require(workspace.bonsplitController.tab(tabId))
+        #expect(tab.iconAsset == "AgentIcons/Codex")
+        workspace.applyProgramStatus(.init(state: .clear), panelId: panel.id)
+        #expect(workspace.bonsplitController.tab(tabId)?.iconAsset == "AgentIcons/Codex")
+
+        workspace.updatePanelShellActivityState(panelId: panel.id, state: .promptIdle)
+        try expectNoTabIcon(workspace: workspace, tabId: tabId)
+    }
+
     @MainActor
     @Test(arguments: [
         "claude_code",
@@ -40,7 +91,7 @@ struct TerminalTabIconRegressionTests {
         )
         #expect(workspace.clearAgentPID(key: key, panelId: panel.id, refreshPorts: false))
 
-        try expectNoAgentMark(workspace: workspace, panel: panel, tabId: tabId)
+        try expectNoTabIcon(workspace: workspace, tabId: tabId)
     }
 
     // #13299: a tab whose title merely looks like an agent command gets no
@@ -55,7 +106,7 @@ struct TerminalTabIconRegressionTests {
         workspace.updatePanelShellActivityState(panelId: panel.id, state: .commandRunning)
         #expect(workspace.updatePanelTitle(panelId: panel.id, title: "codex --yolo"))
 
-        try expectNoAgentMark(workspace: workspace, panel: panel, tabId: tabId)
+        try expectNoTabIcon(workspace: workspace, tabId: tabId)
     }
 
     @MainActor
@@ -83,7 +134,7 @@ struct TerminalTabIconRegressionTests {
         workspace.updatePanelShellActivityState(panelId: panel.id, state: .promptIdle)
         #expect(workspace.restoredAgentResumeStatesByPanelId[panel.id] == .completedAgentExit)
 
-        try expectNoAgentMark(workspace: workspace, panel: panel, tabId: tabId)
+        try expectNoTabIcon(workspace: workspace, tabId: tabId)
     }
 
     // A restored tab that has not resumed its agent yet shows no agent mark:
@@ -104,20 +155,16 @@ struct TerminalTabIconRegressionTests {
             workspace.syncTerminalTabAgentIconAsset(forPanelId: panel.id)
             #expect(workspace.restoredAgentResumeStatesByPanelId[panel.id] == state)
 
-            try expectNoAgentMark(workspace: workspace, panel: panel, tabId: tabId)
+            try expectNoTabIcon(workspace: workspace, tabId: tabId)
         }
     }
 
     @MainActor
-    private func expectNoAgentMark(
-        workspace: Workspace,
-        panel: TerminalPanel,
-        tabId: TabID
-    ) throws {
+    private func expectNoTabIcon(workspace: Workspace, tabId: TabID) throws {
         let tab = try #require(workspace.bonsplitController.tab(tabId))
         #expect(tab.iconAsset == nil)
         #expect(tab.iconImageData == nil)
-        #expect(tab.icon == panel.displayIcon)
+        #expect(tab.icon == nil)
     }
 
     private func restoredAgentSnapshot(kind: RestorableAgentKind) -> SessionRestorableAgentSnapshot {

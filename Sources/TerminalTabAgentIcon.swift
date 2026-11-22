@@ -1,4 +1,5 @@
 import Bonsplit
+import CmuxSidebar
 import Foundation
 
 /// Resolves the provider mark for a local terminal tab from the same agent
@@ -27,9 +28,31 @@ extension Workspace {
         }
         // A restored snapshot outlives its agent (completed sessions stay for
         // history), so it only names the tab while that agent is running.
-        guard let restored = restoredAgentSnapshotsByPanelId[panelId],
-              restoredAgentIsRunning(panelId: panelId) else { return nil }
-        return restored.registration?.iconAssetName ?? resolver.assetName(forStatusKey: restored.kind.rawValue)
+        if let restored = restoredAgentSnapshotsByPanelId[panelId],
+           restoredAgentIsRunning(panelId: panelId),
+           let asset = restored.registration?.iconAssetName ?? resolver.assetName(forStatusKey: restored.kind.rawValue) {
+            return asset
+        }
+        return terminalTabProgramIconAssetsByPanelId[panelId]
+    }
+
+    /// Keeps the provider mark while the foreground agent waits for input.
+    func updateTerminalTabProgramIcon(forPanelId panelId: UUID, store: ProgramStatusRecordStore) {
+        guard panelShellActivityStates[panelId] != .promptIdle else { return }
+        let resolver = TerminalTabAgentIconResolver()
+        for record in store.records.sorted(by: { $0.updateOrder > $1.updateOrder }) {
+            if let app = store.effectiveApp(for: record),
+               let asset = resolver.assetName(forStatusKey: app) {
+                terminalTabProgramIconAssetsByPanelId[panelId] = asset
+                break
+            }
+        }
+        syncTerminalTabAgentIconAsset(forPanelId: panelId)
+    }
+
+    func clearTerminalTabProgramIcon(forPanelId panelId: UUID) {
+        guard terminalTabProgramIconAssetsByPanelId.removeValue(forKey: panelId) != nil else { return }
+        syncTerminalTabAgentIconAsset(forPanelId: panelId)
     }
 
     private func restoredAgentIsRunning(panelId: UUID) -> Bool {
