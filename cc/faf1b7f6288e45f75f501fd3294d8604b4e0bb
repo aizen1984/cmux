@@ -1,0 +1,29 @@
+cmuxTests/TerminalTabIconRegressionTests.swift
+  s_d8fc9f63bfd7de::t_6970e40175377b 2,17-66,94,109,137,158,163,167
+Sources/TerminalTabAgentIcon.swift
+  s_d8fc9f63bfd7de::t_6970e40175377b 2,31-55
+Sources/Workspace.swift
+  s_d8fc9f63bfd7de::t_6970e40175377b 3291,4536,6989
+cmuxTests/RemoteTmuxSessionRenameTitleTests.swift
+  s_d8fc9f63bfd7de::t_6970e40175377b 183-186,193-196
+Sources/Panels/TerminalPanel.swift
+  s_d8fc9f63bfd7de::t_6970e40175377b 139
+Sources/Workspace+ProgramStatus.swift
+  s_d8fc9f63bfd7de::t_6970e40175377b 11,19-21,33,100-102,118
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.8",
+  "base_commit_sha": "ccfaf1b7f6288e45f75f501fd3294d8604b4e0bb",
+  "prompts": {},
+  "sessions": {
+    "s_d8fc9f63bfd7de": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1fdf4-153f-7600-9e2b-e1bac4b1a7f6",
+        "model": "gpt-6.2-sol"
+      },
+      "human_author": "unknown"
+    }
+  }
+}
