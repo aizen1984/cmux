@@ -589,6 +589,11 @@ _cmux_install_cli_wrapper() {
     typeset -g "$wrapper_variable=$wrapper_path"
     if [[ "$command_name" == "claude" ]]; then
         _cmux_install_cli_command_shim "$command_name" "$wrapper_path"
+        # A user function can run checks before calling `command claude`
+        # through the PATH shim. Keep that function (or alias) in charge.
+        if (( ${+functions[claude]} || ${+aliases[claude]} )); then
+            return 0
+        fi
     fi
     builtin unalias "$command_name" >/dev/null 2>&1 || true
     if [[ "$command_name" == "claude" ]]; then
@@ -2427,7 +2432,7 @@ _cmux_precmd() {
 # Contents/MacOS entry so the GUI cmux binary cannot shadow the CLI cmux.
 # Shell init (.zprofile/.zshrc) may prepend other dirs after launch.
 # We fix this once on first prompt (after all init files have run), and
-# reinstall cmux-owned wrapper functions in case user startup replaced them.
+# restore wrapper paths after the user's startup files have changed PATH.
 _cmux_fix_path() {
     local integration_dir="${CMUX_SHELL_INTEGRATION_DIR:-}"
     integration_dir="${integration_dir%/}"

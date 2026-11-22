@@ -176,10 +176,6 @@ extension Workspace {
         var didMutateWorkspaceTitle = false
         panelTitles[panelId] = stable
 
-        if !isRemoteTmuxMirror {
-            syncTerminalTabAgentIconAsset(forPanelId: panelId)
-        }
-
         let previousWorkspaceTitle = self.title
         if applyFocusedPanelTitle(panelId: panelId) {
             didMutateWorkspaceTitle = self.title != previousWorkspaceTitle

@@ -248,8 +248,6 @@ struct CloudSidebarConsistencyTests {
             #expect(badge.agent == provider)
             #expect(CmuxTaskManagerCodingAgentDefinition.builtIns.first(where: { $0.id == provider })?.assetName == asset)
         }
-        #expect(TerminalTabAgentIconResolver().assetName(forStatusKey: "codex") == "AgentIcons/Codex")
-        #expect(TerminalTabAgentIconResolver().assetName(forStatusKey: "gemini") == "AgentIcons/Gemini")
     }
 
     @Test("A bound native tab receives canonical names, process titles, and ignores delayed graph callbacks", arguments: [false, true])

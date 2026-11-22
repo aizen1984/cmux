@@ -835,6 +835,15 @@ final class TerminalPanel: Panel, ObservableObject {
         }
         attentionFlashActiveUntil = now + FocusFlashPattern.current.duration
 
+        if let workspace = surface.owningWorkspace(),
+           workspace.panels[id] === self,
+           let tabId = workspace.surfaceIdFromPanelId(id) {
+            if let anchor = workspace.bonsplitController.popoverAnchorView(for: tabId) {
+                hostedView.triggerTabFlash(anchoredTo: anchor, tabID: tabId.uuid)
+            }
+            return
+        }
+
         switch TmuxOverlayExperimentSettings.target() {
         case .bonsplitPane:
             if let onRequestWorkspacePaneFlash {

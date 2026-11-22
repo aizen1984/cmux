@@ -12568,6 +12568,54 @@ final class GhosttySurfaceScrollView: NSView {
         updateFlashAppearance(style: style)
         flashLayer.removeAllAnimations()
         flashLayer.opacity = 0
+        flashLayer.add(Self.focusFlashAnimation(), forKey: Self.flashAnimationKey)
+    }
+
+    /// Highlights the visible portion of a terminal tab without intercepting clicks.
+    func triggerTabFlash(anchoredTo anchor: NSView, tabID: UUID) {
+        guard let contentView = anchor.window?.contentView else { return }
+        let root = contentView.superview ?? contentView
+        let visibleBounds = anchor.visibleRect.intersection(anchor.bounds)
+        let visibleRect = anchor.convert(visibleBounds, to: root).intersection(root.bounds)
+        guard !visibleRect.isEmpty else { return }
+        let frame = visibleRect.insetBy(dx: 2, dy: 2)
+        guard !frame.isEmpty else { return }
+
+        let identifier = NSUserInterfaceItemIdentifier("cmux.tabFlash.\(tabID)")
+        root.subviews.first(where: { $0.identifier == identifier })?.removeFromSuperview()
+        let overlay = PassthroughWindowOverlayContainerView(frame: frame)
+        overlay.identifier = identifier
+        overlay.wantsLayer = true
+        guard let layer = overlay.layer else { return }
+        layer.backgroundColor = workspaceAttentionFlashNSColor.withAlphaComponent(0.30).cgColor
+        layer.cornerRadius = 8
+        layer.cornerCurve = .continuous
+        layer.zPosition = 20_000
+        overlay.alphaValue = 0
+        root.addSubview(overlay, positioned: .above, relativeTo: nil)
+
+#if DEBUG
+        cmuxDebugLog("tabFlash frame=\(frame) anchor=\(anchor.bounds)")
+        if let surfaceId = surfaceView.terminalSurface?.id {
+            Self.recordFlash(for: surfaceId)
+        }
+#endif
+        let pattern = FocusFlashPattern.current
+        let start = ProcessInfo.processInfo.systemUptime
+        Task { @MainActor [weak overlay] in
+            while let overlay, overlay.superview != nil {
+                let elapsed = ProcessInfo.processInfo.systemUptime - start
+                if elapsed >= pattern.duration {
+                    overlay.removeFromSuperview()
+                    break
+                }
+                overlay.alphaValue = pattern.opacity(at: elapsed)
+                try? await Task.sleep(for: .milliseconds(16))
+            }
+        }
+    }
+
+    private static func focusFlashAnimation() -> CAKeyframeAnimation {
         let pattern = FocusFlashPattern.current
         let animation = CAKeyframeAnimation(keyPath: "opacity")
         animation.values = pattern.values.map { NSNumber(value: $0) }
@@ -12581,7 +12629,7 @@ final class GhosttySurfaceScrollView: NSView {
                 return CAMediaTimingFunction(name: .easeOut)
             }
         }
-        flashLayer.add(animation, forKey: Self.flashAnimationKey)
+        return animation
     }
 
     var isVisibleInUI: Bool { surfaceView.isVisibleInUI }
