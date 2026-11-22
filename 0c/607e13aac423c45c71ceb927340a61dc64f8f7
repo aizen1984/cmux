@@ -1,0 +1,25 @@
+Sources/GhosttyTerminalView.swift
+  s_d8fc9f63bfd7de::t_3ed1d5102a250b 12571-12618,12632
+Sources/Panels/TerminalPanel.swift
+  s_d8fc9f63bfd7de::t_3ed1d5102a250b 838-846
+cmuxTests/TerminalTabIconRegressionTests.swift
+  s_d8fc9f63bfd7de::t_3ed1d5102a250b 12,25-26,38,101
+Resources/shell-integration/cmux-zsh-integration.zsh
+  s_d8fc9f63bfd7de::t_3ed1d5102a250b 592-596,2435
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.8",
+  "base_commit_sha": "0c607e13aac423c45c71ceb927340a61dc64f8f7",
+  "prompts": {},
+  "sessions": {
+    "s_d8fc9f63bfd7de": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1fdf4-153f-7600-9e2b-e1bac4b1a7f6",
+        "model": "gpt-6.2-sol"
+      },
+      "human_author": "unknown"
+    }
+  }
+}
