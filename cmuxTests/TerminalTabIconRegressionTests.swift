@@ -9,7 +9,9 @@ import Testing
 @testable import cmux
 #endif
 
-// Local terminal tabs use text labels even while an agent is running.
+// A terminal tab shows an agent's mark only while that agent runs in the panel
+// (#13299). These tests pin #7822, that the mark goes once the agent does, and
+// that a mark never comes from anything but a running agent.
 @Suite(.serialized)
 struct TerminalTabIconRegressionTests {
     @MainActor
@@ -22,8 +24,11 @@ struct TerminalTabIconRegressionTests {
     }
 
     @MainActor
-    @Test(arguments: ["claude_code", "codex"])
-    func runningAgentLeavesTabIconHidden(statusKey: String) throws {
+    @Test(arguments: [
+        ("claude_code", "AgentIcons/Claude"),
+        ("codex", "AgentIcons/Codex"),
+    ])
+    func runningAgentSetsItsTabIcon(statusKey: String, assetName: String) throws {
         let workspace = Workspace()
         let panel = try #require(workspace.focusedTerminalPanel)
         let tabId = try #require(workspace.surfaceIdFromPanelId(panel.id))
@@ -35,8 +40,27 @@ struct TerminalTabIconRegressionTests {
             panelId: panel.id,
             refreshPorts: false
         )
-        workspace.applyProgramStatus(.init(state: .working, app: statusKey), panelId: panel.id)
 
+        let tab = try #require(workspace.bonsplitController.tab(tabId))
+        #expect(tab.iconAsset == assetName)
+        #expect(tab.icon == nil)
+    }
+
+    @MainActor
+    @Test func codexProgramStatusSetsIconUntilShellPromptReturns() throws {
+        let workspace = Workspace()
+        let panel = try #require(workspace.focusedTerminalPanel)
+        let tabId = try #require(workspace.surfaceIdFromPanelId(panel.id))
+
+        workspace.updatePanelShellActivityState(panelId: panel.id, state: .commandRunning)
+        workspace.applyProgramStatus(.init(state: .working, app: "codex"), panelId: panel.id)
+        workspace.applyProgramStatus(.init(state: .blocked, id: "other", app: "other"), panelId: panel.id)
+        let tab = try #require(workspace.bonsplitController.tab(tabId))
+        #expect(tab.iconAsset == "AgentIcons/Codex")
+        workspace.applyProgramStatus(.init(state: .clear), panelId: panel.id)
+        #expect(workspace.bonsplitController.tab(tabId)?.iconAsset == "AgentIcons/Codex")
+
+        workspace.updatePanelShellActivityState(panelId: panel.id, state: .promptIdle)
         try expectNoTabIcon(workspace: workspace, tabId: tabId)
     }
 
@@ -70,6 +94,9 @@ struct TerminalTabIconRegressionTests {
         try expectNoTabIcon(workspace: workspace, tabId: tabId)
     }
 
+    // #13299: a tab whose title merely looks like an agent command gets no
+    // agent mark. Only a detected agent process or a running restored agent
+    // names the tab.
     @MainActor
     @Test func agentLookingTitleGetsNoAgentMark() throws {
         let workspace = Workspace()
@@ -98,7 +125,10 @@ struct TerminalTabIconRegressionTests {
         )
         workspace.updatePanelShellActivityState(panelId: panel.id, state: .commandRunning)
         #expect(workspace.restoredAgentResumeStatesByPanelId[panel.id] == .autoResumeCommandRunning)
-        try expectNoTabIcon(workspace: workspace, tabId: tabId)
+        // The resumed agent marks the tab, so the check below cannot pass
+        // just because no mark was ever applied.
+        let runningTab = try #require(workspace.bonsplitController.tab(tabId))
+        #expect(runningTab.iconAsset == "AgentIcons/Codex")
 
         // The agent quits and the shell prompt returns.
         workspace.updatePanelShellActivityState(panelId: panel.id, state: .promptIdle)
@@ -122,6 +152,7 @@ struct TerminalTabIconRegressionTests {
                 panelId: panel.id
             )
             workspace.restoredAgentLifecycle.setResumeState(state, panelId: panel.id)
+            workspace.syncTerminalTabAgentIconAsset(forPanelId: panel.id)
             #expect(workspace.restoredAgentResumeStatesByPanelId[panel.id] == state)
 
             try expectNoTabIcon(workspace: workspace, tabId: tabId)

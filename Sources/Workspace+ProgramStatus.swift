@@ -1,3 +1,4 @@
+import Bonsplit
 import CmuxAgentJournal
 import CmuxSidebar
 import Foundation
@@ -8,6 +9,7 @@ extension Workspace {
     /// Applies one OSC 7501 report and publishes the resulting safe snapshot.
     func applyProgramStatus(_ report: ProgramStatusReport, panelId: UUID) {
         guard panels[panelId] != nil else { return }
+        if report.event == .promptStart { clearTerminalTabProgramIcon(forPanelId: panelId) }
         // Every shell prompt emits a prompt-start event; panes that never
         // reported program status have nothing to drop. A clear has nothing to remove either.
         if report.event == .promptStart || report.state == .clear,
@@ -15,6 +17,9 @@ extension Workspace {
         let previousStore = programStatusStoresByPanelId[panelId] ?? ProgramStatusRecordStore()
         let updatedStore = updateProgramStatusStore(panelId: panelId) { $0.apply(report) }
         guard let store = updatedStore else { return }
+        if report.event == .report && report.state != .clear {
+            updateTerminalTabProgramIcon(forPanelId: panelId, store: store)
+        }
         scheduleAgentTurnSettlement(panelId: panelId, previous: previousStore, current: store)
         CmuxEventBus.shared.publishProgramStatusChanged(
             workspaceId: id,
@@ -26,6 +31,7 @@ extension Workspace {
 
     /// Removes working and blocked records after prompt-idle or child exit.
     func dropTransientProgramStatus(panelId: UUID) {
+        clearTerminalTabProgramIcon(forPanelId: panelId)
         let previousStore = programStatusStoresByPanelId[panelId] ?? ProgramStatusRecordStore()
         let updatedStore = updateProgramStatusStore(panelId: panelId, createIfMissing: false) { $0.dropTransient() }
         guard let store = updatedStore else { return }
@@ -92,6 +98,12 @@ extension Workspace {
             .keys
             .sorted { $0.uuidString < $1.uuidString }
         programStatusStoresByPanelId.removeAll()
+        if !clearedPanelIds.isEmpty {
+            sidebarAgentRuntimeObservation.programStatusDidChange()
+        }
+        for panelId in Array(terminalTabProgramIconAssetsByPanelId.keys) {
+            clearTerminalTabProgramIcon(forPanelId: panelId)
+        }
         programStatusUrgencyByPanelId.removeAll()
         for panelId in clearedPanelIds {
             CmuxEventBus.shared.publishProgramStatusChanged(
@@ -107,6 +119,10 @@ extension Workspace {
     /// records under this workspace, so a non-empty store publishes `removed`.
     func clearProgramStatusPanel(panelId: UUID) {
         let removedStore = programStatusStoresByPanelId.removeValue(forKey: panelId)
+        if removedStore != nil {
+            sidebarAgentRuntimeObservation.programStatusDidChange()
+        }
+        clearTerminalTabProgramIcon(forPanelId: panelId)
         programStatusUrgencyByPanelId.removeValue(forKey: panelId)
         removePanelStatusEntry(key: Self.programStatusKey, panelId: panelId)
         refreshProgramStatusWorkspaceEntry()
@@ -120,6 +136,7 @@ extension Workspace {
     }
 
     private func projectProgramStatus(panelId: UUID) {
+        defer { sidebarAgentRuntimeObservation.programStatusDidChange() }
         guard let store = programStatusStoresByPanelId[panelId],
               let record = store.mostUrgentRecord() else {
             programStatusUrgencyByPanelId.removeValue(forKey: panelId)
@@ -298,5 +315,79 @@ extension Workspace {
             key: key,
             panelId: panelId
         )
+    }
+}
+
+/// Resolves the provider mark for a local terminal tab from the same agent
+/// definitions used by process and hook detection.
+struct TerminalTabAgentIconResolver {
+    func assetName(forStatusKey statusKey: String) -> String? {
+        let normalized = statusKey.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !normalized.isEmpty else { return nil }
+        return CmuxTaskManagerCodingAgentDefinition.builtIns.first { definition in
+            (definition.id == "claude" || definition.id == "codex")
+                && (definition.id == normalized
+                    || definition.launchKinds.contains(normalized)
+                    || definition.directBasenames.contains(normalized))
+        }?.assetName
+    }
+}
+
+extension Workspace {
+    /// Returns the current provider mark for one terminal panel, if known.
+    func terminalTabAgentIconAsset(forPanelId panelId: UUID) -> String? {
+        let resolver = TerminalTabAgentIconResolver()
+        let statusKeys = agentPIDKeysByPanelId[panelId, default: []]
+            .map(agentStatusKey(forAgentPIDKey:))
+            .sorted()
+        if let asset = statusKeys.compactMap(resolver.assetName(forStatusKey:)).first {
+            return asset
+        }
+        // A restored snapshot outlives its agent (completed sessions stay for
+        // history), so it only names the tab while that agent is running.
+        if let restored = restoredAgentSnapshotsByPanelId[panelId],
+           restoredAgentIsRunning(panelId: panelId),
+           let asset = resolver.assetName(forStatusKey: restored.kind.rawValue) {
+            return asset
+        }
+        return terminalTabProgramIconAssetsByPanelId[panelId]
+    }
+
+    /// Keeps the provider mark while the foreground agent waits for input.
+    func updateTerminalTabProgramIcon(forPanelId panelId: UUID, store: ProgramStatusRecordStore) {
+        guard panelShellActivityStates[panelId] != .promptIdle else { return }
+        let resolver = TerminalTabAgentIconResolver()
+        for record in store.records.sorted(by: { $0.updateOrder > $1.updateOrder }) {
+            if let app = store.effectiveApp(for: record),
+               let asset = resolver.assetName(forStatusKey: app) {
+                terminalTabProgramIconAssetsByPanelId[panelId] = asset
+                break
+            }
+        }
+        syncTerminalTabAgentIconAsset(forPanelId: panelId)
+    }
+
+    func clearTerminalTabProgramIcon(forPanelId panelId: UUID) {
+        guard terminalTabProgramIconAssetsByPanelId.removeValue(forKey: panelId) != nil else { return }
+        syncTerminalTabAgentIconAsset(forPanelId: panelId)
+    }
+
+    private func restoredAgentIsRunning(panelId: UUID) -> Bool {
+        switch restoredAgentResumeStatesByPanelId[panelId] {
+        case .autoResumeCommandRunning, .observedAgentCommandRunning:
+            return true
+        case .manualResumeAvailable, .awaitingAutoResumeCommand, .completedAgentExit, nil:
+            return false
+        }
+    }
+
+    /// Reconciles a terminal tab's provider mark after agent lifecycle state changes.
+    func syncTerminalTabAgentIconAsset(forPanelId panelId: UUID) {
+        guard panels[panelId] is TerminalPanel,
+              let tabID = surfaceIdFromPanelId(panelId),
+              let tab = bonsplitController.tab(tabID) else { return }
+        let asset = terminalTabAgentIconAsset(forPanelId: panelId)
+        guard tab.iconAsset != asset else { return }
+        bonsplitController.updateTab(tabID, iconAsset: .some(asset))
     }
 }

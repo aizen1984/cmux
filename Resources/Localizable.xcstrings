@@ -646918,6 +646918,20 @@
         "ja": { "stringUnit": { "state": "translated", "value": "サインインが必要" } }
       }
     },
+    "sidebar.activeAgents.title": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Active agents" } },
+        "de": { "stringUnit": { "state": "translated", "value": "Aktive Agenten" } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Agents actifs" } },
+        "ar": { "stringUnit": { "state": "translated", "value": "الوكلاء النشطون" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Agentes activos" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "活躍 Agent" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "活跃 Agent" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "활성 에이전트" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "アクティブなエージェント" } }
+      }
+    },
     "programStatus.state.needsInput": {
       "extractionState": "manual",
       "localizations": {

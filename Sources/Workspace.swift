@@ -3288,6 +3288,7 @@ final class Workspace: Identifiable, ObservableObject, FilePreviewTabMetadataHos
     /// each other; the row resolves the most urgent pane from these instead.
     var agentStatusEntriesByPanelId: [UUID: [String: SidebarStatusEntry]] = [:]
     var programStatusStoresByPanelId: [UUID: ProgramStatusRecordStore] = [:]
+    var terminalTabProgramIconAssetsByPanelId: [UUID: String] = [:]
     var programStatusUrgencyByPanelId: [UUID: Int] = [:]
     /// One pending agent turn settlement per panel and status key; see
     /// `scheduleAgentTurnSettlement` in Workspace+ProgramStatus.swift.
@@ -6419,6 +6420,7 @@ final class Workspace: Identifiable, ObservableObject, FilePreviewTabMetadataHos
             _ = clearStaleAgentPIDs(panelId: panelId, refreshPorts: true)
             dropTransientProgramStatus(panelId: panelId)
         }
+        syncTerminalTabAgentIconAsset(forPanelId: panelId)
 #if DEBUG
         cmuxDebugLog(
             "surface.shellState workspace=\(id.uuidString.prefix(5)) " +
@@ -6982,6 +6984,7 @@ final class Workspace: Identifiable, ObservableObject, FilePreviewTabMetadataHos
         remoteDetectedSurfaceIds = remoteDetectedSurfaceIds.filter { validSurfaceIds.contains($0) }
         panelShellActivityStates = panelShellActivityStates.filter { validSurfaceIds.contains($0.key) }
         programStatusStoresByPanelId = programStatusStoresByPanelId.filter { validSurfaceIds.contains($0.key) }
+        terminalTabProgramIconAssetsByPanelId = terminalTabProgramIconAssetsByPanelId.filter { validSurfaceIds.contains($0.key) }
         programStatusUrgencyByPanelId = programStatusUrgencyByPanelId.filter { validSurfaceIds.contains($0.key) }
         restoredPanelTitleBoundariesByPanelId = restoredPanelTitleBoundariesByPanelId.filter {
             validSurfaceIds.contains($0.key)

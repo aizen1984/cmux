@@ -58,15 +58,14 @@ public struct ThemesSection: View {
     public var body: some View {
         Group {
             SettingsSectionHeader(String(localized: "settings.section.themes", defaultValue: "Themes"), section: .themes)
+            SettingsCard {
+                TerminalThemeSettingsRows(hostActions: hostActions)
+                SettingsCardDivider()
+                adaptiveDefaultThemeRow
+            }
             appCard
             SettingsCard {
                 browserThemeRow
-            }
-            // Last: the gallery lists every theme and runs long.
-            SettingsCard {
-                adaptiveDefaultThemeRow
-                SettingsCardDivider()
-                TerminalThemeSettingsRows(hostActions: hostActions)
             }
         }
         .task { startSettingsObservation([appearance, accentColor, accentColorCustomHex, appIcon, adaptiveDefaultTheme, browserTheme]) }

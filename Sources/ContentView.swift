@@ -12043,13 +12043,19 @@ struct VerticalTabsSidebar: View, Equatable {
             visibleWorkspaceRowIds: visibleWorkspaceRowIds
         )
         let _ = SidebarProfilingSignposts.end(signpost)
-        ZStack(alignment: .bottomLeading) {
+        VStack(spacing: 0) {
             if CmuxExtensionSidebarSelection.resolvesToDefaultSidebar(effectiveProviderId: effectiveExtensionSidebarProviderId) {
                 workspaceScrollArea(renderContext: renderContext)
             } else {
                 extensionSidebarScrollArea(renderContext: renderContext)
             }
             if isPresented {
+                SidebarActiveAgents(workspaces: tabs) { workspaceId, panelId in
+                    guard let workspace = tabManager.tabs.first(where: { $0.id == workspaceId }),
+                          workspace.panels[panelId] != nil else { return }
+                    tabManager.selectWorkspace(workspace)
+                    workspace.focusPanel(panelId)
+                }
                 SidebarFooter(
                     updateViewModel: updateViewModel,
                     fileExplorerState: fileExplorerState,
@@ -15757,6 +15763,143 @@ struct SidebarWorkspaceRowFramePreferenceKey: PreferenceKey {
 
     static func reduce(value: inout [UUID: Anchor<CGRect>], nextValue: () -> [UUID: Anchor<CGRect>]) {
         value.merge(nextValue()) { _, next in next }
+    }
+}
+
+private struct SidebarActiveAgents: View {
+    let workspaces: [Workspace]
+    let onSelect: (UUID, UUID) -> Void
+
+    @State private var isExpanded = true
+    @State private var runtimeRevision = 0
+
+    private struct Row: Identifiable {
+        struct ID: Hashable {
+            let panelId: UUID
+            let agentName: String
+        }
+
+        let id: ID
+        let workspaceId: UUID
+        let workspaceTitle: String
+        let needsInput: Bool
+
+        var title: String { "\(id.agentName) · \(workspaceTitle)" }
+        var status: String {
+            needsInput
+                ? String(localized: "programStatus.state.needsInput", defaultValue: "Needs input")
+                : String(localized: "programStatus.state.working", defaultValue: "Working")
+        }
+    }
+
+    private var rows: [Row] {
+        let agents = [(key: "claude_code", app: "claude-code", name: "CC"), (key: "codex", app: "codex", name: "Codex")]
+        var waiting: [Row] = []
+        var running: [Row] = []
+        for workspace in workspaces {
+            let states = workspace.agentLifecycleStatesByPanelId
+            let programStatuses = workspace.programStatusStoresByPanelId
+            let panelIds = Set(states.keys).union(programStatuses.keys)
+            for panelId in panelIds.sorted(by: { $0.uuidString < $1.uuidString }) {
+                guard workspace.panels[panelId] != nil else { continue }
+                var programWorking: Set<String> = []
+                var programBlocked: Set<String> = []
+                if let store = programStatuses[panelId] {
+                    for record in store.records {
+                        guard let app = store.effectiveApp(for: record)?.lowercased() else { continue }
+                        if record.state == .blocked {
+                            programBlocked.insert(app)
+                        } else if record.state == .working {
+                            programWorking.insert(app)
+                        }
+                    }
+                }
+                for agent in agents {
+                    let state = states[panelId]?[agent.key]
+                    let needsInput = state == .needsInput || programBlocked.contains(agent.app)
+                    let isWorking = state == .running || state == .backgroundWorkPending || programWorking.contains(agent.app)
+                    guard needsInput || isWorking else { continue }
+                    let row = Row(
+                        id: Row.ID(panelId: panelId, agentName: agent.name),
+                        workspaceId: workspace.id,
+                        workspaceTitle: workspace.title,
+                        needsInput: needsInput
+                    )
+                    if row.needsInput {
+                        waiting.append(row)
+                    } else {
+                        running.append(row)
+                    }
+                }
+            }
+        }
+        return waiting + running
+    }
+
+    var body: some View {
+        let _ = runtimeRevision
+        let rows = self.rows
+        Group {
+            if !rows.isEmpty {
+                VStack(alignment: .leading, spacing: 4) {
+                    Button {
+                        isExpanded.toggle()
+                    } label: {
+                        HStack(spacing: 5) {
+                            Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
+                                .font(.system(size: 9, weight: .semibold))
+                                .accessibilityHidden(true)
+                            Text(String(localized: "sidebar.activeAgents.title", defaultValue: "Active agents"))
+                                .font(.system(size: 11, weight: .semibold))
+                            Spacer(minLength: 0)
+                        }
+                        .foregroundStyle(.secondary)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("SidebarActiveAgentsToggle")
+
+                    if isExpanded {
+                        ScrollView {
+                            VStack(spacing: 0) {
+                                ForEach(rows) { row in
+                                    Button {
+                                        onSelect(row.workspaceId, row.id.panelId)
+                                    } label: {
+                                        HStack(spacing: 6) {
+                                            Text(row.title)
+                                                .lineLimit(1)
+                                            Spacer(minLength: 0)
+                                            Text(row.status)
+                                                .foregroundStyle(row.needsInput ? Color.orange : Color.secondary)
+                                                .fixedSize()
+                                        }
+                                        .font(.system(size: 11))
+                                        .padding(.horizontal, 6)
+                                        .frame(height: 24)
+                                        .contentShape(Rectangle())
+                                    }
+                                    .buttonStyle(.plain)
+                                    .help(row.title)
+                                }
+                            }
+                        }
+                        .frame(height: CGFloat(min(rows.count, 4) * 24))
+                    }
+                }
+                .padding(.horizontal, 6)
+                .padding(.vertical, 7)
+                .background(.primary.opacity(0.045), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .padding(.horizontal, 6)
+                .padding(.bottom, 4)
+            }
+        }
+        .sidebarAgentRuntimeObservations(
+            ids: workspaces.map(\.id),
+            models: workspaces.map(\.sidebarAgentRuntimeObservation)
+        ) { _ in
+            runtimeRevision &+= 1
+        }
     }
 }
 
