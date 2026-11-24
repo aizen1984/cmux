@@ -1,0 +1,19 @@
+tests/test_agy_wrapper_hooks.py
+  s_7f3f4ec488a83c::t_d7b0d3c3e1de56 9-10,80-141,198-201
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.8",
+  "base_commit_sha": "c161e9f88983ba4584f7795c68d183aaf6a132b6",
+  "prompts": {},
+  "sessions": {
+    "s_7f3f4ec488a83c": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a20cf5-acef-75b2-97f0-94cdb4101964",
+        "model": "gpt-6.2-sol"
+      },
+      "human_author": "unknown"
+    }
+  }
+}
