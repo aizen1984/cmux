@@ -1,0 +1,19 @@
+Resources/bin/agy
+  s_7f3f4ec488a83c::t_3888cd50545eb9 4-24,29-31,35-36,38-43
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.8",
+  "base_commit_sha": "7bb67fe78107f42420ad2ee2013e9a3b5f13720c",
+  "prompts": {},
+  "sessions": {
+    "s_7f3f4ec488a83c": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a20cf5-acef-75b2-97f0-94cdb4101964",
+        "model": "gpt-6.2-sol"
+      },
+      "human_author": "unknown"
+    }
+  }
+}
